@@ -11,9 +11,3 @@ libraryDependencies ++= Seq(
   "org.scalatest"           %% "scalatest"          % "2.2.0"       % "test",
   "org.scalacheck"          %% "scalacheck"         % "1.12.2"      % "test"
 )
-
-// --- sbteclipse ---
-
-EclipseKeys.withSource := true
-
-fork in Test := false
