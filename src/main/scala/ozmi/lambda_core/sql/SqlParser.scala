@@ -9,10 +9,22 @@ object SqlParser  extends ParserUtilities {
 
     def keyword = keywords ("""[^a-zA-Z0-9_]""".r, List ("SELECT"))
 
-    // *** ColumnExpr ***
     def literal : PackratParser[Literal] =
+        decimalLit | integerLit | stringLit
+
+    def integerLit : PackratParser[Literal] =
         """\d+""".r ^^ {
             case string => IntegerLit (BigInt (string))
+        }
+
+    def decimalLit : PackratParser[Literal] =
+        """\d+\.\d+""".r ^^ {
+            case string => DecimalLit (BigDecimal (string))
+        }
+
+    def stringLit : PackratParser[Literal] =
+        """\'([^\'])*\'""".r ^^ {
+            case string => StringLit (string.substring(1, string.length - 1))
         }
 
     def ident : PackratParser[String] =

@@ -47,4 +47,6 @@ class SqlParserTest extends FunSuite {
                     SingleColumnSelector (ColumnRef (None, "col4"), Some ("test"))
                 ))))
     }
+
+
 }

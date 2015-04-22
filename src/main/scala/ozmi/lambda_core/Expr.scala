@@ -29,9 +29,7 @@ trait Value extends Expr
   * @param id the id to look up from the context
   */
 case class Lookup (id : Id) extends Expr with Value {
-    
-    override def toString () = s"""Lookup ("${id}")"""
-    
+    override def toString () = id
 }
 
 /** Literal is conceptually the same as a Lookup in that it refers to resources.
@@ -65,9 +63,7 @@ case class TypeLiteral (typeDesc : TypeDesc) extends Expr
   * @param e2 the expression that will be applied to [[e1]]
   */
 case class Apply (exprs : Expr*) extends Expr {
-    
-    override def toString () = s"Apply (${exprs mkString ", "})"
-    
+    override def toString () = s"(${exprs mkString " "})"
 }
 
 /** Lambda represents a function body with a single bound variable.
@@ -80,7 +76,9 @@ case class Apply (exprs : Expr*) extends Expr {
   *
   * @param fun function that expects an expression and returns the body of this lambda
   */
-case class Lambda (args : Seq[Id], body : Expr) extends Expr
+case class Lambda (args : Seq[Id], body : Expr) extends Expr {
+    override def toString () = (args map {arg => s"\u03BB${arg}."} mkString "") + body
+}
 
 /** A let expression allows you to assign sub-trees to ids making it easier to reuse them
   * in the nested expression.

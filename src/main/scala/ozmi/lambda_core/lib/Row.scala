@@ -10,6 +10,13 @@ object Row extends TypeClass {
 
     override val operators = Seq()
 
+    object New extends MultiaryOp ("Row.new") {
+        override lazy val evalRules =
+            rule[Expr] {
+                case New (exprs)  => Literal (exprs)
+            }
+    }
+
     override lazy val evalRules =
         rule[Expr] {
             case Apply (Lookup (fieldName), Literal (row : TypedRow)) if row hasField fieldName => row get fieldName

@@ -1,6 +1,8 @@
 package ozmi.lambda_core.sql
 
-sealed abstract class SqlExpr
+import org.kiama.output._
+
+sealed abstract class SqlExpr extends PrettyExpression
 
 sealed abstract class Relation extends SqlExpr
 case class ObjectRef (schemaName : Option[String], objectName : String) extends Relation
@@ -19,9 +21,30 @@ case object InnerJoin extends JoinType
 sealed trait ColumnExpr extends SqlExpr
 case class ColumnRef (objectRef : Option[String], columnRef : String) extends ColumnExpr
 case class UnaryOp (operator : String, arg : ColumnExpr) extends ColumnExpr
-case class BinaryOp (operator : String, arg1 : ColumnExpr, arg2 : ColumnExpr) extends ColumnExpr
+case class BinaryOp (operator : String, arg1 : ColumnExpr, arg2 : ColumnExpr) extends ColumnExpr with PrettyBinaryExpression {
+    val fixity      = BinaryOp.fixity (operator)
+    val priority    = BinaryOp.priority (operator)
+    val left        = arg1
+    val op          = operator
+    val right       = arg2
+}
+object BinaryOp {
+    def fixity (op : String) : Fixity =
+        op match {
+            case "+" | "-" | "*" | "/" => Infix (LeftAssoc)
+        }
+
+    def priority (op : String) : Int =
+        // lower number is higher priority
+        op match {
+            case "+" | "-" => 2
+            case "*" | "/" => 1
+        }
+}
 case class ColFunCall (functionName : String, args : ColumnExpr*) extends ColumnExpr
+
 sealed trait Literal extends ColumnExpr
 case class IntegerLit (value : BigInt) extends Literal
 case class StringLit (value : String) extends Literal
 case class DecimalLit (value : BigDecimal) extends Literal
+

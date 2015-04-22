@@ -24,8 +24,9 @@ object Coll extends TypeInstance {
                     val newColl =
                         coll filter {item =>
                             val itemBody = replaceVariable (body, itemVar, item)
-                            rewrite (Library.evalRules) (itemBody) match {
+                            Library.eval (itemBody) match {
                                 case Literal (v : Boolean) => v
+                                case other                 => sys.error (s"Expected 'Literal (_ : Boolean)' after evaluating '${itemBody}' but got '${other}' back.")
                             }
                         }
                     Literal (newColl)
@@ -39,8 +40,9 @@ object Coll extends TypeInstance {
                     val newColl =
                         coll map {item =>
                             val itemBody = replaceVariable (body, itemVar, item)
-                            rewrite (Library.evalRules) (itemBody) match {
+                            Library.eval (itemBody) match {
                                 case Literal (v) => v
+                                case other       => sys.error (s"Expected 'Literal (_)' after evaluating '${itemBody}' but got '${other}' back.")
                             }
                         }
                     Literal (newColl)
@@ -59,6 +61,7 @@ object Coll extends TypeInstance {
                                 val itemBody = replaceVariable (replaceVariable (body, itemVarA, itemA), itemVarB, itemB)
                                 rewrite (Library.evalRules) (itemBody) match {
                                     case Literal (v) => v
+                                    case other       => sys.error (s"Expected 'Literal (_)' after evaluating '${itemBody}' but got '${other}' back.")
                                 }
                             }
                         Literal (result)
