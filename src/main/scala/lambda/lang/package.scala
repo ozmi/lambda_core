@@ -1,42 +1,49 @@
 package lambda
 
-import lambda.lang.TypeExp.TypeConst.{ ModuleType, RecordType, TaggedUnionType, TupleType }
-import lambda.lang.TypeExp.{ TypeApply, TypeSelect }
+import lambda.lang.Data.Type
+import lambda.lang.Data.Type._
+import lambda.lang.Exp._
 
 package object lang {
 
     implicit def symbolToName (symbol : Symbol) =
         Name.parse.snake_case (symbol.name)
 
-    def module (subTypes : (Name, TypeExp)*) =
-        ModuleType (subTypes.toMap)
+    implicit def expToType (exp : Exp) : Type =
+        Type.Lazy (exp)
 
-    def record (fields : (Name, TypeExp)*) =
-        RecordType (fields.toVector)
+    implicit def typeToExp (tpe : Type) : Exp =
+        Const (tpe)
 
-    def taggedUnion (subTypes : (Name, TypeExp)*) =
-        TaggedUnionType (subTypes.toMap)
+    def module (subTypes : (Name, Type)*) =
+        Module (subTypes.toMap)
 
-    def tuple (elems : TypeExp*) =
-        TupleType (elems.toVector)
+    def record (fields : (Name, Type)*) =
+        Record (fields.toMap)
+
+    def taggedUnion (subTypes : (Name, Type)*) =
+        TaggedUnion (subTypes.toMap)
+
+    def tuple (elems : Type*) =
+        Tuple (elems.toVector)
 
     def ref (path : Symbol*) =
-        TypeSelect (TypeScope.RootModule, path.toVector map symbolToName)
+        Select (RootScope, path.toVector map symbolToName)
 
-    def apply (constructor : TypeExp, args : TypeExp*) =
-        TypeApply (constructor, args.toVector)
+    def apply (constructor : Exp, args : Exp*) =
+        Apply (constructor, args.toVector)
 
     object BranchType {
 
-        def unapply (typeExp : TypeExp) : Option [Map [Name, TypeExp]] = {
+        def unapply (typeExp : Type) : Option [Map [Name, Type]] = {
             typeExp match {
-                case ModuleType (children) =>
+                case Module (children) =>
                     Some (children)
-                case RecordType (fields) =>
-                    Some (fields.toMap)
-                case TaggedUnionType (subtypes) =>
+                case Record (fields) =>
+                    Some (fields)
+                case TaggedUnion (subtypes) =>
                     Some (subtypes)
-                case TupleType (elems) =>
+                case Tuple (elems) =>
                     val keys =
                         for (index <- 1 to elems.size) yield {
                             Name (Vector ("elem", index.toString))

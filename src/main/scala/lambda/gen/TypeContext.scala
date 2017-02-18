@@ -1,30 +1,30 @@
 package lambda.gen
 
-import lambda.lang.TypeExp.TypeSelect
-import lambda.lang.TypeScope.RootModule
-import lambda.lang.{ Name, TypeExp }
+import lambda.lang.Data.Type
+import lambda.lang.Exp.{RootScope, Select}
+import lambda.lang.Name
 
 case class TypeContext (
-    rootType : TypeExp,
+    rootType : Type,
     namePath : Array [Name],
-    typePath : Array [TypeExp]
+    typePath : Array [Type]
 ) {
 
     def isRoot : Boolean =
         namePath.isEmpty
 
-    def descend (nextName : Name, nextType : TypeExp) =
+    def descend (nextName : Name, nextType : Type) =
         TypeContext (rootType, namePath :+ nextName, typePath :+ nextType)
 
     def thisName : Name =
         namePath.lastOption getOrElse sys.error ("Invoked thisName on the root TypeContext!")
 
-    def thisType : TypeExp =
+    def thisType : Type =
         typePath.last
 
-    def selectTypePath (typeSelect : TypeSelect) : Option [Array [TypeExp]] = {
+    def selectTypePath (typeSelect : Select) : Option [Array [Type]] = {
         typeSelect.scope match {
-            case RootModule =>
+            case RootScope =>
                 TypeSearch.selectTypePath (rootType, typeSelect.path.toArray)
         }
     }
@@ -33,7 +33,7 @@ case class TypeContext (
 
 object TypeContext {
 
-    def apply (rootType : TypeExp) : TypeContext =
+    def apply (rootType : Type) : TypeContext =
         TypeContext (rootType, Array.empty, Array (rootType))
 
 }

@@ -3,83 +3,97 @@ package lambda.gen.scala_lang
 import scala.collection.immutable.Seq
 import scala.meta._
 import lambda.gen.TypeContext
-import lambda.lang.TypeExp.{ TypeApply, TypeConst, TypeSelect }
+import lambda.lang.Data.Type._
+import lambda.lang.Exp._
 import lambda.lang._
-import lambda.lang.TypeExp.TypeConst.{ ModuleType, RecordType, TaggedUnionType, TupleType }
 
-object ScalaTypeMapper extends TypeMapper with scala.App {
+object ScalaTypeMapper extends scala.App {
 
-    override def toDefn (context : TypeContext, typeSelect : TypeSelect) : Seq [Stat] = {
-        Seq.empty
-    }
-
-    def x (context : TypeContext, typeSelect : TypeSelect) : Type =
-        context.selectTypePath (typeSelect) match {
-            case Some (typePath) =>
-                val steps =
-                    for ((name, tpe) <- typeSelect.path zip typePath) yield tpe match {
-                        case _ : ModuleType =>
-                            name.snake_case
-                        case _ =>
-                            name.TitleCase
+    def toStatSeq (context : TypeContext) : Seq [Stat] = {
+        context.thisType match {
+            case module : Module =>
+                val members =
+                    for ((childTypeName, childType) <- module.childTypes.toVector) yield {
+                        toStatSeq (context.descend (childTypeName, childType))
                     }
-                steps.mkString (".").parse [Type].get
-            case None =>
-                val packages = typeSelect.path.init map {_.snake_case}
-                (packages :+ typeSelect.path.last.TitleCase).mkString (".").parse [Type].get
-        }
-
-    override def toDefn (context : TypeContext, thisType : TypeApply) : Seq [Stat] = {
-        Seq.empty
-    }
-
-    override def toDefn (context : TypeContext, thisType : ModuleType) : Seq [Stat] = {
-        val members =
-            for ((childTypeName, childType) <- thisType.childTypes.toVector) yield {
-                toDefn (context.descend (childTypeName, childType))
-            }
-        if (context.isRoot) {
-            members.flatten
-        } else {
-            Seq (
-                q"package ${Term.Name (context.thisName.snake_case)} { ..${members.flatten} }"
-            )
-        }
-    }
-
-    override def toDefn (context : TypeContext, thisType : RecordType) : Seq [Stat] = {
-        if (thisType.fields.isEmpty) {
-            Seq (
-                q"case object ${Term.Name (context.thisName.TitleCase)}"
-            )
-        } else {
-            val params =
-                for ((fieldName, fieldType) <- thisType.fields) yield fieldType match {
-                    case ts : TypeSelect =>
-                        param"${Term.Name (fieldName.camelCase)}: ${x (context, ts)}"
-                    case _ =>
-                        param"${Term.Name (fieldName.camelCase)}: String"
+                if (context.isRoot) {
+                    members.flatten
+                } else {
+                    Seq (
+                        q"package ${Term.Name (context.thisName.snake_case)} { ..${members.flatten} }"
+                    )
                 }
-            Seq (
-                q"case class ${Type.Name (context.thisName.TitleCase)} (..$params)"
-            )
+            case record : Record =>
+                if (record.fields.isEmpty) {
+                    Seq (
+                        q"case object ${Term.Name (context.thisName.TitleCase)}"
+                    )
+                } else {
+                    val params =
+                        for ((fieldName, fieldType) <- record.fields.toList)
+                            yield param"${Term.Name (fieldName.camelCase)}: ${toType (context, fieldType)}"
+                    Seq (
+                        q"case class ${Type.Name (context.thisName.TitleCase)} (..$params)"
+                    )
+                }
+            case taggedUnion : TaggedUnion =>
+                val members =
+                    for ((subTypeName, subType) <- taggedUnion.subTypes.toVector) yield {
+                        toStatSeq (context.descend (subTypeName, subType))
+                    }
+                Seq (
+                    q"sealed trait ${Type.Name (context.thisName.TitleCase)}",
+                    q"object ${Term.Name (context.thisName.TitleCase)} { ..${members.flatten} }"
+                )
+            case tuple : Tuple =>
+                Seq.empty
+            case Lazy (exp) =>
+                exp match {
+                    case select : Select =>
+                        Seq.empty
+                    case apply : Apply =>
+                        Seq.empty
+                }
         }
     }
 
-    override def toDefn (context : TypeContext, thisType : TaggedUnionType) : Seq [Stat] = {
-        val members =
-            for ((subTypeName, subType) <- thisType.subTypes.toVector) yield {
-                toDefn (context.descend (subTypeName, subType))
-            }
-        Seq (
-            q"sealed trait ${Type.Name (context.thisName.TitleCase)}",
-            q"object ${Term.Name (context.thisName.TitleCase)} { ..${members.flatten} }"
-        )
-    }
+    def toType (context: TypeContext, targetType : Data.Type) : Type =
+        targetType match {
+            case tuple : Tuple =>
+                val typeElems =
+                    for (elem <- tuple.elems)
+                        yield toType (context, elem)
+                t"(..$typeElems)"
+            case Lazy (exp) =>
+                exp match {
+                    case Const (tpe : Data.Type) =>
+                        toType (context, tpe)
+                    case typeSelect : Select =>
+                        context.selectTypePath (typeSelect) match {
+                            case Some (typePath) =>
+                                val steps =
+                                    for ((name, tpe) <- typeSelect.path zip typePath) yield tpe match {
+                                        case _ : Module =>
+                                            name.snake_case
+                                        case _ =>
+                                            name.TitleCase
+                                    }
+                                steps.mkString (".").parse [Type].get
+                            case None =>
+                                val packages = typeSelect.path.init map {_.snake_case}
+                                (packages :+ typeSelect.path.last.TitleCase).mkString (".").parse [Type].get
+                        }
+                    case typeApply : Apply =>
+                        val typeConst =
+                            toType (context, typeApply.fun)
+                        val typeArgs =
+                            for (arg <- typeApply.args)
+                                yield toType (context, arg)
+                        t"$typeConst[..$typeArgs]"
+                }
+        }
 
-    override def toDefn (context : TypeContext, thisType : TupleType) : Seq[Stat] = ???
-
-    val tree = toDefn (TypeContext (Model.root))
+    val tree = toStatSeq (TypeContext (Model.root))
 
     println (tree.head)
 
@@ -93,7 +107,7 @@ object ScalaTypeMapper extends TypeMapper with scala.App {
         }
     }
 
-//    val source = new java.io.File("src/main/scala/lambda/lang/TypeExp.scala").parse[Source].get
-//    println (source.stats.head.getClass)
+    val source = new java.io.File("src/main/scala/lambda/lang/Exp.scala").parse[Source].get
+    print (source.stats.head)
 
 }

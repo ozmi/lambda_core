@@ -1,11 +1,12 @@
 package lambda.gen
 
-import lambda.lang.{ BranchType, Name, TypeExp }
+import lambda.lang.Data.Type
+import lambda.lang.{BranchType, Name}
 
 object TypeSearch {
 
-    def selectTypePath (rootType : TypeExp, path : Array [Name]) : Option [Array [TypeExp]] = {
-        def inner (currentType : TypeExp, remainingPath : Array [Name], resultSoFar : Array [TypeExp]) : Option [Array [TypeExp]] = {
+    def selectTypePath (rootType : Type, path : Array [Name]) : Option [Array [Type]] = {
+        def inner (currentType : Type, remainingPath : Array [Name], resultSoFar : Array [Type]) : Option [Array [Type]] = {
             if (remainingPath.isEmpty) {
                 Some (resultSoFar)
             } else {
