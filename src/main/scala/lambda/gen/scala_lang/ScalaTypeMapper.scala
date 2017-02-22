@@ -1,7 +1,7 @@
 package lambda.gen.scala_lang
 
 import scala.collection.immutable.Seq
-import scala.meta._
+import scala.meta.{Defn, _}
 import lambda.gen.TypeContext
 import lambda.lang.Data.Type._
 import lambda.lang.Exp._
@@ -97,17 +97,17 @@ object ScalaTypeMapper extends scala.App {
 
     println (tree.head)
 
-    def print (stat : Stat) : Unit = {
-        stat match {
-            case pkg : Pkg =>
-                println (pkg.ref)
-                pkg.stats foreach print
+    def print (indent: String, tree : Tree) : Unit = {
+        tree match {
+            case d : Defn.Def =>
+                println (d.name)
             case other =>
-                println (other)
+                println (indent + other.getClass.getName)
         }
+        tree.children foreach {x => print (indent + "  ", x)}
     }
 
-    val source = new java.io.File("src/main/scala/lambda/lang/Exp.scala").parse[Source].get
-    print (source.stats.head)
+    val source = new java.io.File("src/main/scala/example/Calc.scala").parse[Source].get
+    print ("", source.stats.head)
 
 }
